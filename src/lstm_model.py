@@ -7,8 +7,8 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 import sys
 import os
 
-# Add the data directory to the path so we can import load_data
-sys.path.append('data')
+# Add the src directory to the path so we can import load_data
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from load_data import load_and_preprocess_data
 
 class WindLSTM(nn.Module):
@@ -243,37 +243,37 @@ def evaluate_model(model, test_loader, scaler, device='cpu'):
     
     return metrics, wind_speed_pred, wind_speed_true
 
-def plot_training_history(train_losses, val_losses):
-    """
-    Plot training and validation loss history.
-    """
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_losses, label='Training Loss', color='blue')
-    plt.plot(val_losses, label='Validation Loss', color='red')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+# def plot_training_history(train_losses, val_losses):
+#     """
+#     Plot training and validation loss history.
+#     """
+#     plt.figure(figsize=(10, 6))
+#     plt.plot(train_losses, label='Training Loss', color='blue')
+#     plt.plot(val_losses, label='Validation Loss', color='red')
+#     plt.xlabel('Epoch')
+#     plt.ylabel('Loss')
+#     plt.title('Training and Validation Loss')
+#     plt.legend()
+#     plt.grid(True)
+#     plt.show()
 
-def plot_predictions(wind_speed_pred, wind_speed_true, num_points=100):
-    """
-    Plot actual vs predicted wind speeds.
-    """
-    plt.figure(figsize=(12, 6))
+# def plot_predictions(wind_speed_pred, wind_speed_true, num_points=100):
+#     """
+#     Plot actual vs predicted wind speeds.
+#     """
+#     plt.figure(figsize=(12, 6))
     
-    # Plot first 100 points for clarity
-    x = range(min(num_points, len(wind_speed_pred)))
-    plt.plot(x, wind_speed_true[:num_points], label='Actual', color='blue', alpha=0.7)
-    plt.plot(x, wind_speed_pred[:num_points], label='Predicted', color='red', alpha=0.7)
+#     # Plot first 100 points for clarity
+#     x = range(min(num_points, len(wind_speed_pred)))
+#     plt.plot(x, wind_speed_true[:num_points], label='Actual', color='blue', alpha=0.7)
+#     plt.plot(x, wind_speed_pred[:num_points], label='Predicted', color='red', alpha=0.7)
     
-    plt.xlabel('Time Steps')
-    plt.ylabel('Wind Speed (mph)')
-    plt.title('Actual vs Predicted Wind Speed')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+#     plt.xlabel('Time Steps')
+#     plt.ylabel('Wind Speed (mph)')
+#     plt.title('Actual vs Predicted Wind Speed')
+#     plt.legend()
+#     plt.grid(True)
+#     plt.show()
 
 def main():
     """
@@ -323,7 +323,7 @@ def main():
     model.load_state_dict(best_model)
     
     # Plot training history
-    plot_training_history(train_losses, val_losses)
+    # plot_training_history(train_losses, val_losses)
     
     # Evaluate model
     metrics, wind_speed_pred, wind_speed_true = evaluate_model(
@@ -334,16 +334,16 @@ def main():
     )
     
     # Plot predictions
-    plot_predictions(wind_speed_pred, wind_speed_true)
+    # plot_predictions(wind_speed_pred, wind_speed_true)
     
     # Save the trained model
     torch.save({
         'model_state_dict': best_model,
         'scaler': scaler,
         'metrics': metrics
-    }, 'wind_lstm_model.pth')
+    }, '../models/wind_lstm_model.pth', _use_new_zipfile_serialization=False)
     
-    print("\nModel saved as 'wind_lstm_model.pth'")
+    print("\nModel saved as '../models/wind_lstm_model.pth'")
     print("Training completed successfully!")
 
 if __name__ == "__main__":

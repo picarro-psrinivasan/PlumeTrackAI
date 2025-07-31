@@ -5,12 +5,12 @@ from sklearn.preprocessing import MinMaxScaler
 import sys
 import os
 
-# Add the data directory to the path so we can import load_data
-sys.path.append('data')
+# Add the src directory to the path so we can import load_data
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from load_data import load_and_preprocess_data
 from lstm_model import WindLSTM
 
-def load_trained_model(model_path='wind_lstm_model.pth'):
+def load_trained_model(model_path='../models/wind_lstm_model.pth'):
     """
     Load the trained LSTM model and scaler.
     
@@ -21,8 +21,8 @@ def load_trained_model(model_path='wind_lstm_model.pth'):
         tuple: (model, scaler)
     """
     try:
-        # Load the saved model
-        checkpoint = torch.load(model_path, map_location='cpu')
+        # Load the saved model with weights_only=False for compatibility
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
         
         # Create model instance
         model = WindLSTM(
@@ -134,7 +134,7 @@ def predict_wind_6hours_ahead(model, input_sequence, scaler):
             'wind_direction_degrees': round(wind_direction_pred, 1)
         }
 
-def get_recent_wind_data(data_file='data/15_min_avg_1site_1ms.csv', hours_back=6):
+def get_recent_wind_data(data_file='../data/15_min_avg_1site_1ms.csv', hours_back=6):
     """
     Get recent wind data for prediction.
     
@@ -149,6 +149,10 @@ def get_recent_wind_data(data_file='data/15_min_avg_1site_1ms.csv', hours_back=6
     try:
         # Load the data
         df = pd.read_csv(data_file)
+        
+        # Extract wind data from JSON wind_metrics column
+        from load_data import extract_wind_data
+        df = extract_wind_data(df)
         
         # Keep only wind speed and direction columns
         if 'wind_speed' in df.columns and 'wind_direction_deg' in df.columns:
@@ -229,7 +233,7 @@ def main():
     
     return prediction
 
-def predict_from_custom_data(wind_speeds, wind_directions, model_path='wind_lstm_model.pth'):
+def predict_from_custom_data(wind_speeds, wind_directions, model_path='../models/wind_lstm_model.pth'):
     """
     Make prediction using custom wind data.
     
