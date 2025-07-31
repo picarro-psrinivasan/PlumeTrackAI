@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from load_data import load_and_preprocess_data
 from lstm_model import WindLSTM
 
-def load_trained_model(model_path='../models/wind_lstm_model.pth'):
+def load_trained_model(model_path='models/wind_lstm_model.pth'):
     """
     Load the trained LSTM model and scaler.
     
@@ -233,7 +233,7 @@ def main():
     
     return prediction
 
-def predict_from_custom_data(wind_speeds, wind_directions, model_path='../models/wind_lstm_model.pth'):
+def predict_from_custom_data(wind_speeds, wind_directions, model_path='models/wind_lstm_model.pth'):
     """
     Make prediction using custom wind data.
     

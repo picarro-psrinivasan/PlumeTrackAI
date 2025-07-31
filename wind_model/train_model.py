@@ -10,20 +10,16 @@ import os
 # Add src directory to path
 sys.path.append('src')
 
-from lstm_model import main as train_main
+from src.lstm_model import main as train_main
 
 if __name__ == "__main__":
     print("=== PlumeTrackAI Model Training ===")
-    print("Starting training from main directory...")
-    
-    # Change to src directory for relative paths to work
-    original_dir = os.getcwd()
-    os.chdir('src')
+    print("Starting training from wind_model directory...")
     
     try:
         train_main()
-    finally:
-        # Change back to original directory
-        os.chdir(original_dir)
+    except Exception as e:
+        print(f"Error during training: {e}")
+        sys.exit(1)
     
     print("Training completed!") 
