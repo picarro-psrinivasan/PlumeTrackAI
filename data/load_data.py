@@ -5,6 +5,48 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import MinMaxScaler
 import os
+import json
+
+def extract_wind_data(df):
+    """
+    Extract wind speed and direction from the wind_metrics JSON column.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with wind_metrics column
+        
+    Returns:
+        pd.DataFrame: DataFrame with extracted wind_speed and wind_direction_deg columns
+    """
+    wind_speeds = []
+    wind_directions = []
+    
+    for idx, row in df.iterrows():
+        try:
+            # Parse the JSON wind_metrics
+            wind_metrics = json.loads(row['wind_metrics'])
+            
+            # Extract wind speed (convert from m/s to mph)
+            wind_speed_mps = wind_metrics.get('avg_wind_speed_meters_per_sec', 0)
+            wind_speed_mph = wind_speed_mps * 2.23694  # Convert m/s to mph
+            
+            # Extract wind direction
+            wind_direction = wind_metrics.get('avg_wind_direction_deg', 0)
+            
+            wind_speeds.append(wind_speed_mph)
+            wind_directions.append(wind_direction)
+            
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            print(f"Error parsing wind data at row {idx}: {e}")
+            wind_speeds.append(0)
+            wind_directions.append(0)
+    
+    # Create new DataFrame with extracted wind data
+    wind_df = pd.DataFrame({
+        'wind_speed': wind_speeds,
+        'wind_direction_deg': wind_directions
+    })
+    
+    return wind_df
 
 def load_and_preprocess_data(file_path="15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
     """
@@ -38,6 +80,14 @@ def load_and_preprocess_data(file_path="15_min_avg_1site_1ms.csv", sequence_leng
     except Exception as e:
         print(f"Error loading data: {e}")
         return None, None, None, None
+    
+    # Extract wind data from JSON wind_metrics column
+    print("\nExtracting wind data from JSON wind_metrics column...")
+    df = extract_wind_data(df)
+    
+    print(f"Extracted wind data shape: {df.shape}")
+    print(f"Wind speed range: {df['wind_speed'].min():.2f} - {df['wind_speed'].max():.2f} mph")
+    print(f"Wind direction range: {df['wind_direction_deg'].min():.2f} - {df['wind_direction_deg'].max():.2f} degrees")
     
     # Keep only necessary columns
     if 'wind_speed' in df.columns and 'wind_direction_deg' in df.columns:
@@ -141,6 +191,11 @@ def explore_data(file_path="15_min_avg_1site_1ms.csv"):
         print(f"\nBasic statistics:")
         print(df.describe())
         
+        # Show example of wind_metrics JSON
+        if 'wind_metrics' in df.columns:
+            print(f"\nExample wind_metrics JSON:")
+            print(df['wind_metrics'].iloc[0])
+        
         return df
     except Exception as e:
         print(f"Error exploring data: {e}")
@@ -148,6 +203,7 @@ def explore_data(file_path="15_min_avg_1site_1ms.csv"):
 
 if __name__ == "__main__":
     # Explore the data first
+    print("=== Data Exploration ===")
     df = explore_data()
     
     if df is not None:
