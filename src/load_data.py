@@ -22,6 +22,11 @@ def extract_wind_data(df):
     
     for idx, row in df.iterrows():
         try:
+            # Check if wind_metrics is NaN or not a string
+            if pd.isna(row['wind_metrics']) or not isinstance(row['wind_metrics'], str):
+                print(f"Skipping row {idx}: Missing or invalid wind data")
+                continue
+                
             # Parse the JSON wind_metrics
             wind_metrics = json.loads(row['wind_metrics'])
             
@@ -32,13 +37,16 @@ def extract_wind_data(df):
             # Extract wind direction
             wind_direction = wind_metrics.get('avg_wind_direction_deg', 0)
             
-            wind_speeds.append(wind_speed_mph)
-            wind_directions.append(wind_direction)
+            # Only append if we have valid data
+            if wind_speed_mph > 0 and wind_direction >= 0:
+                wind_speeds.append(wind_speed_mph)
+                wind_directions.append(wind_direction)
+            else:
+                print(f"Skipping row {idx}: Invalid wind values (speed: {wind_speed_mph}, direction: {wind_direction})")
             
         except (json.JSONDecodeError, KeyError, TypeError) as e:
-            print(f"Error parsing wind data at row {idx}: {e}")
-            wind_speeds.append(0)
-            wind_directions.append(0)
+            print(f"Skipping row {idx}: Error parsing JSON - {e}")
+            continue
     
     # Create new DataFrame with extracted wind data
     wind_df = pd.DataFrame({
@@ -46,9 +54,14 @@ def extract_wind_data(df):
         'wind_direction_deg': wind_directions
     })
     
+    # Count how many rows we processed
+    total_rows_processed = len(df)
+    valid_rows = len(wind_speeds)
+    print(f"Successfully extracted wind data from {valid_rows}/{total_rows_processed} rows ({valid_rows/total_rows_processed*100:.1f}% valid data)")
+    
     return wind_df
 
-def load_and_preprocess_data(file_path="15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
+def load_and_preprocess_data(file_path="../data/15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
     """
     Load and preprocess wind data for LSTM training.
     
@@ -171,7 +184,7 @@ def create_sequences(data, sequence_length, target_hours):
     
     return np.array(X), np.array(y)
 
-def explore_data(file_path="15_min_avg_1site_1ms.csv"):
+def explore_data(file_path="../data/15_min_avg_1site_1ms.csv"):
     """
     Explore the data to understand its structure.
     """
