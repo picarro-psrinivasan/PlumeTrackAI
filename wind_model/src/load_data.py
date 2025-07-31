@@ -74,9 +74,9 @@ def load_and_preprocess_data(file_path="../data/15_min_avg_1site_1ms.csv", seque
         tuple: (train_loader, val_loader, test_loader, scaler)
     """
     
-    # Construct full path relative to data directory
-    data_dir = os.path.dirname(os.path.abspath(__file__))
-    full_path = os.path.join(data_dir, file_path)
+    # Construct full path relative to current working directory
+    current_dir = os.getcwd()
+    full_path = os.path.join(current_dir, file_path)
     
     print(f"Loading data from: {full_path}")
     

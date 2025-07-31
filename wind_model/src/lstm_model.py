@@ -341,9 +341,9 @@ def main():
         'model_state_dict': best_model,
         'scaler': scaler,
         'metrics': metrics
-    }, '../models/wind_lstm_model.pth', _use_new_zipfile_serialization=False)
+    }, 'models/wind_lstm_model.pth', _use_new_zipfile_serialization=False)
     
-    print("\nModel saved as '../models/wind_lstm_model.pth'")
+    print("\nModel saved as 'models/wind_lstm_model.pth'")
     print("Training completed successfully!")
 
 if __name__ == "__main__":
