@@ -35,7 +35,7 @@ def load_trained_concentration_model(model_path='trained_models/concentration_ls
             input_size=input_size,
             hidden_size=64,
             num_layers=2,
-            output_steps=6,
+            output_steps=24,  # 24 time steps (6 hours * 4 intervals per hour)
             dropout=0.2
         )
         
@@ -98,38 +98,81 @@ def predict_concentration_6hours_ahead(model, input_sequence, scaler):
         scaler: MinMaxScaler used for normalization
         
     Returns:
-        list: List of dictionaries containing predictions for each hour
+        dict: Dictionary containing:
+            - 'predictions': List of dictionaries for each time step
+            - 'dataframe': Pandas DataFrame with predictions
+            - 'summary': Summary statistics
     """
+    # Compound mapping from model output to actual names
+    compound_mapping = {
+        'compound_1': 'C2H4Cl2',
+        'compound_2': 'C2H4O',
+        'compound_3': 'C2H3Cl', 
+        'compound_4': 'C4H6',
+        'compound_5': 'C4H5Cl',
+        'compound_6': 'C6H6'
+    }
+    
     try:
         with torch.no_grad():
             # Make prediction
             predictions = model(input_sequence)
             
             # Convert to numpy array
-            predictions_np = predictions.squeeze(0).numpy()  # Shape: (6, num_compounds)
+            predictions_np = predictions.squeeze(0).numpy()  # Shape: (24, num_compounds)
             
             # Inverse transform to get original scale
             predictions_original = scaler.inverse_transform(predictions_np)
             
             # Create prediction results
             predictions_list = []
-            for hour in range(6):
-                hour_pred = predictions_original[hour]
+            for step in range(24):  # 24 time steps (6 hours * 4 intervals per hour)
+                step_pred = predictions_original[step]
                 
-                # Create dictionary for this hour
-                hour_dict = {
-                    'hour': hour + 1,
+                # Create dictionary for this time step
+                step_dict = {
+                    'step': step + 1,
+                    'time_minutes': (step + 1) * 15,  # 15-minute intervals
                     'compounds': {}
                 }
                 
                 # Add each compound's concentration
-                for i, concentration in enumerate(hour_pred):
-                    compound_name = f"compound_{i+1}"  # You might want to map this to actual compound names
-                    hour_dict['compounds'][compound_name] = round(concentration, 3)
+                for i, concentration in enumerate(step_pred):
+                    compound_key = f"compound_{i+1}"
+                    compound_name = compound_mapping.get(compound_key, compound_key)
+                    step_dict['compounds'][compound_name] = round(concentration, 3)
                 
-                predictions_list.append(hour_dict)
+                predictions_list.append(step_dict)
             
-            return predictions_list
+            # Create DataFrame for easier analysis
+            df_data = []
+            for pred in predictions_list:
+                row = {
+                    'time_minutes': pred['time_minutes'],
+                    'step': pred['step']
+                }
+                row.update(pred['compounds'])
+                df_data.append(row)
+            
+            predictions_df = pd.DataFrame(df_data)
+            
+            # Calculate summary statistics
+            summary = {}
+            for compound in ['C2H4Cl2', 'C2H4O', 'C2H3Cl', 'C4H6', 'C4H5Cl', 'C6H6']:
+                if compound in predictions_df.columns:
+                    values = predictions_df[compound].values
+                    summary[compound] = {
+                        'min': float(values.min()),
+                        'max': float(values.max()),
+                        'mean': float(values.mean()),
+                        'std': float(values.std())
+                    }
+            
+            return {
+                'predictions': predictions_list,
+                'dataframe': predictions_df,
+                'summary': summary
+            }
             
     except Exception as e:
         print(f"Error making concentration prediction: {e}")
@@ -171,6 +214,46 @@ def get_recent_concentration_data(data_file='data/15_min_avg_1site_1ms.csv', hou
         print(f"Error loading recent concentration data: {e}")
         return None
 
+def get_concentration_predictions(model_path='trained_models/concentration_lstm_model.pth', data_file='data/15_min_avg_1site_1ms.csv'):
+    """
+    Get concentration predictions for the next 6 hours.
+    
+    Args:
+        model_path (str): Path to the trained model
+        data_file (str): Path to the data file
+        
+    Returns:
+        dict: Prediction results containing predictions, dataframe, and summary
+    """
+    # Load the trained model
+    model, scaler, metrics, input_size = load_trained_concentration_model(model_path)
+    
+    if model is None:
+        print("Error: Could not load concentration model.")
+        return None
+    
+    # Get recent concentration data
+    recent_data = get_recent_concentration_data(data_file)
+    
+    if recent_data is None:
+        print("Error: Could not load recent concentration data.")
+        return None
+    
+    # Prepare input sequence and make predictions
+    input_sequence = prepare_concentration_input_sequence(recent_data, scaler, sequence_length=24)
+    
+    if input_sequence is None:
+        print("Error: Could not prepare input sequence.")
+        return None
+    
+    prediction_results = predict_concentration_6hours_ahead(model, input_sequence, scaler)
+    
+    if prediction_results is None:
+        print("Error: Could not make predictions.")
+        return None
+    
+    return prediction_results
+
 def main():
     """
     Main function to demonstrate concentration prediction.
@@ -202,20 +285,27 @@ def main():
     
     # Make prediction
     print("\nMaking concentration prediction for 6 hours ahead...")
-    predictions = predict_concentration_6hours_ahead(model, input_sequence, scaler)
+    prediction_results = predict_concentration_6hours_ahead(model, input_sequence, scaler)
     
-    if predictions is None:
+    if prediction_results is None:
         return
     
+    predictions = prediction_results['predictions']
+    predictions_df = prediction_results['dataframe']
+    summary = prediction_results['summary']
+    
     # Display results
-    print("\n=== Concentration Predictions (6 hours ahead) ===")
+    print("\n=== Concentration Predictions (6 hours ahead - 15-min intervals) ===")
     for pred in predictions:
-        print(f"\nHour {pred['hour']}:")
+        minutes = pred['time_minutes']
+        hours = minutes // 60
+        mins = minutes % 60
+        time_str = f"{hours:02d}:{mins:02d}"
+        print(f"\nTime {time_str} (Step {pred['step']}):")
         for compound, concentration in pred['compounds'].items():
             print(f"  {compound}: {concentration} PPB")
     
     # Show recent data for context
-    print("\n=== Recent Concentration Data (Last 6 hours) ===")
     recent_6hours = recent_data.tail(24)  # Last 6 hours (24 * 15 min)
     
     print("Current concentrations:")

@@ -68,14 +68,14 @@ def extract_concentration_data(df):
         print("No valid concentration data found!")
         return None
 
-def load_and_preprocess_concentration_data(file_path="data/15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
+def load_and_preprocess_concentration_data(file_path="data/15_min_avg_1site_1ms.csv", sequence_length=24, target_steps=24):
     """
     Load and preprocess concentration data for LSTM training.
     
     Args:
         file_path (str): Path to the CSV file
         sequence_length (int): Number of time steps to use as input
-        target_hours (int): Number of hours to predict ahead
+        target_steps (int): Number of time steps to predict ahead (15-min intervals)
     
     Returns:
         tuple: (train_loader, val_loader, test_loader, scaler)
@@ -124,8 +124,8 @@ def load_and_preprocess_concentration_data(file_path="data/15_min_avg_1site_1ms.
     data_scaled = scaler.fit_transform(data)
     
     # Create sequences
-    print(f"\nCreating sequences with sequence_length={sequence_length}, target_hours={target_hours}")
-    X, y = create_sequences(data_scaled, sequence_length, target_hours)
+    print(f"\nCreating sequences with sequence_length={sequence_length}, target_steps={target_steps}")
+    X, y = create_sequences(data_scaled, sequence_length, target_steps)
     
     if X is None or y is None:
         print("Error: Could not create sequences.")
@@ -164,28 +164,28 @@ def load_and_preprocess_concentration_data(file_path="data/15_min_avg_1site_1ms.
     
     return train_loader, val_loader, test_loader, scaler
 
-def create_sequences(data, sequence_length, target_hours):
+def create_sequences(data, sequence_length, target_steps):
     """
     Create sequences for LSTM training.
     
     Args:
         data (np.array): Input data array
         sequence_length (int): Number of time steps to use as input
-        target_hours (int): Number of hours to predict ahead
+        target_steps (int): Number of time steps to predict ahead (15-min intervals)
     
     Returns:
         tuple: (X, y) where X is input sequences and y is target sequences
     """
     X, y = [], []
     
-    for i in range(len(data) - sequence_length - target_hours + 1):
+    for i in range(len(data) - sequence_length - target_steps + 1):
         X.append(data[i:(i + sequence_length)])
         targets = []
-        for hour in range(target_hours):
-            target_idx = i + sequence_length + hour
+        for step in range(target_steps):
+            target_idx = i + sequence_length + step
             if target_idx < len(data):
                 targets.append(data[target_idx])
-        if len(targets) == target_hours:
+        if len(targets) == target_steps:
             y.append(np.array(targets))
     
     if len(X) == 0 or len(y) == 0:

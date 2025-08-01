@@ -239,8 +239,8 @@ def main():
     # Load and preprocess concentration data
     print("\nLoading and preprocessing concentration data...")
     train_loader, val_loader, test_loader, scaler = load_and_preprocess_concentration_data(
-        sequence_length=24,  # 6 hours of lookback
-        target_hours=6       # Predict 6 hours ahead
+        sequence_length=24,  # 6 hours of lookback (24 * 15 min)
+        target_steps=24      # Predict 6 hours ahead (24 * 15 min intervals)
     )
     
     if train_loader is None:
@@ -258,7 +258,7 @@ def main():
         input_size=input_size,  # Number of compounds
         hidden_size=64,         # Number of LSTM hidden units
         num_layers=2,           # Number of LSTM layers
-        output_steps=6,         # Predict 6 hours ahead (one prediction per hour)
+        output_steps=24,        # Predict 6 hours ahead (24 * 15 min intervals)
         dropout=0.2             # Dropout for regularization
     )
     
