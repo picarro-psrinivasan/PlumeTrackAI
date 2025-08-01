@@ -8,18 +8,18 @@ import sys
 import os
 
 # Add paths
-sys.path.append('../src')
+sys.path.append('..')
 sys.path.append('../api')
 
 # Handle imports based on how the script is run
 try:
     from api.ops_wind_data_api import extract_forecast_wind_data, validate_prediction_with_forecast
-    from src.predict_wind import predict_wind_6hours_ahead, load_trained_model
+    from prediction.wind_predictor import predict_wind_6hours_ahead, load_trained_model
 except ImportError:
     # If running directly, adjust paths
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from api.ops_wind_data_api import extract_forecast_wind_data, validate_prediction_with_forecast
-    from src.predict_wind import predict_wind_6hours_ahead, load_trained_model
+    from prediction.wind_predictor import predict_wind_6hours_ahead, load_trained_model
 
 def test_forecast_extraction():
     """
@@ -110,7 +110,7 @@ def test_real_prediction_validation():
             return None
         
         # Get recent wind data and make a real prediction
-        from src.predict_wind import get_recent_wind_data, prepare_input_sequence
+        from prediction.wind_predictor import get_recent_wind_data, prepare_input_sequence
         
         print("Getting recent wind data...")
         recent_data = get_recent_wind_data()

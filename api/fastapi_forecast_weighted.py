@@ -13,7 +13,7 @@ from datetime import datetime
 import numpy as np
 
 # Add paths for imports
-sys.path.append('../src')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append('.')
 
 def convert_numpy_types(obj):
@@ -35,7 +35,7 @@ def convert_numpy_types(obj):
         return obj
 
 try:
-    from forecast_weighted_prediction import forecast_weighted_prediction
+    from scripts.forecast_weighted_prediction import forecast_weighted_prediction
     # Fix data path for API usage
     import sys
     import os
@@ -44,20 +44,20 @@ try:
     
     # Monkey patch the data loading function to use correct path
     import pandas as pd
-    from src.predict_wind import get_recent_wind_data as original_get_recent_wind_data
+    from prediction.wind_predictor import get_recent_wind_data as original_get_recent_wind_data
     
     def get_recent_wind_data_fixed(data_file='../../data/15_min_avg_1site_1ms.csv', hours_back=6):
         """Fixed version of get_recent_wind_data that works from API directory."""
         return original_get_recent_wind_data(data_file, hours_back)
     
     # Replace the function in the module
-    import src.predict_wind
-    src.predict_wind.get_recent_wind_data = get_recent_wind_data_fixed
+    import prediction.wind_predictor
+    prediction.wind_predictor.get_recent_wind_data = get_recent_wind_data_fixed
     
 except ImportError:
     # If running directly, adjust paths
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from src.forecast_weighted_prediction import forecast_weighted_prediction
+    from scripts.forecast_weighted_prediction import forecast_weighted_prediction
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -141,14 +141,14 @@ async def predict_wind_forecast_weighted(request: PredictionRequest):
         
         # Call forecast-weighted prediction function with fixed data path
         # First, let's fix the data path issue by monkey patching the function
-        import src.predict_wind
-        original_get_recent_wind_data = src.predict_wind.get_recent_wind_data
+        import prediction.wind_predictor
+        original_get_recent_wind_data = prediction.wind_predictor.get_recent_wind_data
         
         def get_recent_wind_data_fixed(data_file='../../data/15_min_avg_1site_1ms.csv', hours_back=6):
             return original_get_recent_wind_data(data_file, hours_back)
         
         # Replace the function in the module
-        src.predict_wind.get_recent_wind_data = get_recent_wind_data_fixed
+        prediction.wind_predictor.get_recent_wind_data = get_recent_wind_data_fixed
         print("get_recent_wind_data_fixed success",get_recent_wind_data_fixed)
         
         # Set default model path for API usage
@@ -158,7 +158,7 @@ async def predict_wind_forecast_weighted(request: PredictionRequest):
         # Create a custom forecast-weighted prediction function that works from API directory
         def custom_forecast_weighted_prediction(**kwargs):
             # Import the original function
-            from src.forecast_weighted_prediction import forecast_weighted_prediction as original_func
+            from scripts.forecast_weighted_prediction import forecast_weighted_prediction as original_func
             
             # Call the original function with fixed paths
             return original_func(**kwargs)

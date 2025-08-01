@@ -15,12 +15,12 @@ sys.path.append('../api')
 
 # Handle imports based on how the script is run
 try:
-    from predict_wind import load_trained_model, get_recent_wind_data, prepare_input_sequence, predict_wind_6hours_ahead
+    from prediction.wind_predictor import load_trained_model, get_recent_wind_data, prepare_input_sequence, predict_wind_6hours_ahead
     from api.ops_wind_data_api import extract_forecast_wind_data, validate_prediction_with_forecast
 except ImportError:
     # If running directly, adjust paths
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from src.predict_wind import load_trained_model, get_recent_wind_data, prepare_input_sequence, predict_wind_6hours_ahead
+    from prediction.wind_predictor import load_trained_model, get_recent_wind_data, prepare_input_sequence, predict_wind_6hours_ahead
     from api.ops_wind_data_api import extract_forecast_wind_data, validate_prediction_with_forecast
 
 def forecast_weighted_prediction(

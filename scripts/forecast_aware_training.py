@@ -279,7 +279,7 @@ def fine_tune_with_forecast_data(
     model.eval()
     
     # Make a test prediction
-    from predict_wind import get_recent_wind_data, prepare_input_sequence, predict_wind_6hours_ahead
+    from prediction.wind_predictor import get_recent_wind_data, prepare_input_sequence, predict_wind_6hours_ahead
     
     recent_data = get_recent_wind_data()
     if recent_data is not None:
