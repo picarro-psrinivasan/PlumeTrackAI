@@ -9,14 +9,17 @@ import os
 
 # Add the src directory to the path so we can import load_data
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from load_data import load_and_preprocess_data
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from data_handling.loader import load_and_preprocess_data
 
 class WindLSTM(nn.Module):
     """
-    LSTM model for wind speed and direction prediction.
+    LSTM model for wind speed and direction prediction with multi-step output.
     """
     
-    def __init__(self, input_size=3, hidden_size=64, num_layers=2, output_size=3, dropout=0.2):
+    def __init__(self, input_size=3, hidden_size=64, num_layers=2, output_steps=6, dropout=0.2):
         """
         Initialize the LSTM model.
         
@@ -24,13 +27,14 @@ class WindLSTM(nn.Module):
             input_size (int): Number of input features (wind_speed_scaled, wind_dir_sin, wind_dir_cos)
             hidden_size (int): Number of LSTM hidden units
             num_layers (int): Number of LSTM layers
-            output_size (int): Number of output features (same as input for wind prediction)
+            output_steps (int): Number of time steps to predict ahead (default: 6 hours)
             dropout (float): Dropout rate for regularization
         """
         super(WindLSTM, self).__init__()
         
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.output_steps = output_steps
         
         # LSTM layers
         self.lstm = nn.LSTM(
@@ -41,8 +45,8 @@ class WindLSTM(nn.Module):
             dropout=dropout if num_layers > 1 else 0
         )
         
-        # Fully connected layer for final prediction
-        self.fc = nn.Linear(hidden_size, output_size)
+        # Fully connected layer for each time step prediction
+        self.fc = nn.Linear(hidden_size, input_size * output_steps)
         
         # Dropout for regularization
         self.dropout = nn.Dropout(dropout)
@@ -55,7 +59,8 @@ class WindLSTM(nn.Module):
             x (torch.Tensor): Input tensor of shape (batch_size, sequence_length, input_size)
             
         Returns:
-            torch.Tensor: Output tensor of shape (batch_size, output_size)
+            torch.Tensor: Output tensor of shape (batch_size, output_steps * input_size)
+                          Reshaped to (batch_size, output_steps, input_size) for convenience
         """
         # Initialize hidden state and cell state
         batch_size = x.size(0)
@@ -71,8 +76,11 @@ class WindLSTM(nn.Module):
         # Apply dropout
         last_output = self.dropout(last_output)
         
-        # Final prediction
+        # Final prediction for all time steps
         output = self.fc(last_output)
+        
+        # Reshape to (batch_size, output_steps, input_size)
+        output = output.view(batch_size, self.output_steps, -1)
         
         return output
 
@@ -213,10 +221,17 @@ def evaluate_model(model, test_loader, scaler, device='cpu'):
     all_predictions = np.array(all_predictions)
     all_targets = np.array(all_targets)
     
+    # Reshape predictions and targets for evaluation
+    # all_predictions shape: (batch_size, 6, 3) -> (batch_size * 6, 3)
+    # all_targets shape: (batch_size, 6, 3) -> (batch_size * 6, 3)
+    batch_size = all_predictions.shape[0]
+    all_predictions_flat = all_predictions.reshape(-1, 3)
+    all_targets_flat = all_targets.reshape(-1, 3)
+    
     # Inverse transform to get original scale (for wind speed only)
     # Note: We only inverse transform the wind speed (first column)
-    wind_speed_pred = scaler.inverse_transform(all_predictions[:, 0:1]).flatten()
-    wind_speed_true = scaler.inverse_transform(all_targets[:, 0:1]).flatten()
+    wind_speed_pred = scaler.inverse_transform(all_predictions_flat[:, 0:1]).flatten()
+    wind_speed_true = scaler.inverse_transform(all_targets_flat[:, 0:1]).flatten()
     
     # Calculate metrics
     mse = mean_squared_error(wind_speed_true, wind_speed_pred)
@@ -302,7 +317,7 @@ def main():
         input_size=3,      # wind_speed_scaled, wind_dir_sin, wind_dir_cos
         hidden_size=64,    # Number of LSTM hidden units
         num_layers=2,      # Number of LSTM layers
-        output_size=3,     # Same as input (predict wind speed and direction)
+        output_steps=6,    # Predict 6 hours ahead (one prediction per hour)
         dropout=0.2        # Dropout for regularization
     )
     
@@ -341,9 +356,9 @@ def main():
         'model_state_dict': best_model,
         'scaler': scaler,
         'metrics': metrics
-    }, 'models/wind_lstm_model.pth', _use_new_zipfile_serialization=False)
+    }, 'trained_models/wind_lstm_model.pth', _use_new_zipfile_serialization=False)
     
-    print("\nModel saved as 'models/wind_lstm_model.pth'")
+    print("\nModel saved as 'trained_models/wind_lstm_model.pth'")
     print("Training completed successfully!")
 
 if __name__ == "__main__":

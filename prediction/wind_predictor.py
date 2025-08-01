@@ -5,12 +5,11 @@ from sklearn.preprocessing import MinMaxScaler
 import sys
 import os
 
-# Add the src directory to the path so we can import load_data
+# Add the current directory to the path so we can import modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from load_data import load_and_preprocess_data
-from lstm_model import WindLSTM
+from model_definitions.lstm_model import WindLSTM
 
-def load_trained_model(model_path='models/wind_lstm_model.pth'):
+def load_trained_model(model_path='trained_models/wind_lstm_model.pth'):
     """
     Load the trained LSTM model and scaler.
     
@@ -29,7 +28,7 @@ def load_trained_model(model_path='models/wind_lstm_model.pth'):
             input_size=3,
             hidden_size=64,
             num_layers=2,
-            output_size=3,
+            output_steps=6,
             dropout=0.2
         )
         
@@ -97,7 +96,7 @@ def prepare_input_sequence(recent_data, scaler, sequence_length=24):
 
 def predict_wind_6hours_ahead(model, input_sequence, scaler):
     """
-    Predict wind speed and direction 6 hours ahead.
+    Predict wind speed and direction for all 6 hours ahead.
     
     Args:
         model: Trained LSTM model
@@ -105,36 +104,46 @@ def predict_wind_6hours_ahead(model, input_sequence, scaler):
         scaler: Fitted scaler for inverse transformation
         
     Returns:
-        dict: Predicted wind speed and direction
+        list: List of 6 predictions, one for each hour ahead
     """
     
     model.eval()
     
     with torch.no_grad():
-        # Make prediction
+        # Make prediction for all 6 hours
         prediction = model(input_sequence)
         
-        # Convert to numpy
+        # Convert to numpy - shape: (1, 6, 3) for 6 hours, 3 features each
         prediction_np = prediction.cpu().numpy()
         
-        # Inverse transform wind speed to original scale
-        wind_speed_pred = scaler.inverse_transform(prediction_np[:, 0:1])[0, 0]
+        predictions = []
         
-        # Get wind direction from sin/cos
-        wind_dir_sin = prediction_np[0, 1]
-        wind_dir_cos = prediction_np[0, 2]
-        wind_direction_pred = np.degrees(np.arctan2(wind_dir_sin, wind_dir_cos))
+        # Process each hour's prediction
+        for hour in range(6):
+            # Get prediction for this hour
+            hour_pred = prediction_np[0, hour, :]  # Shape: (3,)
+            
+            # Inverse transform wind speed to original scale
+            wind_speed_pred = scaler.inverse_transform(hour_pred[0:1].reshape(1, -1))[0, 0]
+            
+            # Get wind direction from sin/cos
+            wind_dir_sin = hour_pred[1]
+            wind_dir_cos = hour_pred[2]
+            wind_direction_pred = np.degrees(np.arctan2(wind_dir_sin, wind_dir_cos))
+            
+            # Ensure direction is between 0 and 360 degrees
+            if wind_direction_pred < 0:
+                wind_direction_pred += 360
+            
+            predictions.append({
+                'hour': hour + 1,
+                'wind_speed_mph': round(wind_speed_pred, 2),
+                'wind_direction_degrees': round(wind_direction_pred, 1)
+            })
         
-        # Ensure direction is between 0 and 360 degrees
-        if wind_direction_pred < 0:
-            wind_direction_pred += 360
-        
-        return {
-            'wind_speed_mph': round(wind_speed_pred, 2),
-            'wind_direction_degrees': round(wind_direction_pred, 1)
-        }
+        return predictions
 
-def get_recent_wind_data(data_file='../data/15_min_avg_1site_1ms.csv', hours_back=6):
+def get_recent_wind_data(data_file='data/15_min_avg_1site_1ms.csv', hours_back=6):
     """
     Get recent wind data for prediction.
     
@@ -151,7 +160,10 @@ def get_recent_wind_data(data_file='../data/15_min_avg_1site_1ms.csv', hours_bac
         df = pd.read_csv(data_file)
         
         # Extract wind data from JSON wind_metrics column
-        from load_data import extract_wind_data
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from data_handling.loader import extract_wind_data
         df = extract_wind_data(df)
         
         # Keep only wind speed and direction columns
@@ -205,12 +217,12 @@ def main():
     
     # Make prediction
     print("\nMaking prediction for 6 hours ahead...")
-    prediction = predict_wind_6hours_ahead(model, input_sequence, scaler)
+    predictions = predict_wind_6hours_ahead(model, input_sequence, scaler)
     
     # Display results
-    print("\n=== Wind Prediction (6 hours ahead) ===")
-    print(f"Predicted Wind Speed: {prediction['wind_speed_mph']} mph")
-    print(f"Predicted Wind Direction: {prediction['wind_direction_degrees']}°")
+    print("\n=== Wind Predictions (6 hours ahead) ===")
+    for pred in predictions:
+        print(f"Hour {pred['hour']}: {pred['wind_speed_mph']} mph @ {pred['wind_direction_degrees']}°")
     
     # Show recent data for context
     print("\n=== Recent Wind Data (Last 6 hours) ===")
@@ -222,16 +234,19 @@ def main():
     avg_speed_6h = recent_6hours['wind_speed'].mean()
     print(f"Average Wind Speed (6h): {avg_speed_6h:.1f} mph")
     
-    if prediction['wind_speed_mph'] > avg_speed_6h:
+    # Calculate average predicted speed
+    avg_predicted_speed = sum(pred['wind_speed_mph'] for pred in predictions) / len(predictions)
+    
+    if avg_predicted_speed > avg_speed_6h:
         trend = "increasing"
-    elif prediction['wind_speed_mph'] < avg_speed_6h:
+    elif avg_predicted_speed < avg_speed_6h:
         trend = "decreasing"
     else:
         trend = "stable"
     
     print(f"Wind Speed Trend: {trend}")
     
-    return prediction
+    return predictions
 
 def predict_from_custom_data(wind_speeds, wind_directions, model_path='models/wind_lstm_model.pth'):
     """

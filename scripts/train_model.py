@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-PlumeTrackAI - Wind Prediction Model Training
-Main script to train the LSTM model for wind speed and direction prediction.
+PlumeTrackAI - Model Training Script
+Trains the LSTM model for wind prediction.
 """
 
 import sys
 import os
 
-# Add src directory to path
-sys.path.append('src')
+# Add current directory to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from src.lstm_model import main as train_main
+from model_definitions.lstm_model import main as train_main
 
 if __name__ == "__main__":
     print("=== PlumeTrackAI Model Training ===")
-    print("Starting training from wind_model directory...")
+    print("Starting training...")
     
     try:
         train_main()

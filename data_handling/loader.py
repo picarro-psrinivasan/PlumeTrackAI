@@ -61,7 +61,7 @@ def extract_wind_data(df):
     
     return wind_df
 
-def load_and_preprocess_data(file_path="../data/15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
+def load_and_preprocess_data(file_path="data/15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
     """
     Load and preprocess wind data for LSTM training.
     
@@ -164,7 +164,7 @@ def load_and_preprocess_data(file_path="../data/15_min_avg_1site_1ms.csv", seque
 
 def create_sequences(data, sequence_length, target_hours):
     """
-    Create input sequences and target values for LSTM.
+    Create input sequences and target values for LSTM with multi-step prediction.
     
     Args:
         data (np.array): Input data
@@ -172,19 +172,28 @@ def create_sequences(data, sequence_length, target_hours):
         target_hours (int): Number of hours to predict ahead
     
     Returns:
-        tuple: (X, y) sequences
+        tuple: (X, y) sequences where y contains all target_hours predictions
     """
     X, y = [], []
     
     for i in range(len(data) - sequence_length - target_hours + 1):
         # Input sequence
         X.append(data[i:(i + sequence_length)])
-        # Target (predicting target_hours ahead)
-        y.append(data[i + sequence_length + target_hours - 1])
+        
+        # Targets for all target_hours (6 hours ahead)
+        targets = []
+        for hour in range(target_hours):
+            target_idx = i + sequence_length + hour
+            if target_idx < len(data):
+                targets.append(data[target_idx])
+        
+        # Ensure we have exactly target_hours predictions
+        if len(targets) == target_hours:
+            y.append(np.array(targets))
     
     return np.array(X), np.array(y)
 
-def explore_data(file_path="../data/15_min_avg_1site_1ms.csv"):
+def explore_data(file_path="data/15_min_avg_1site_1ms.csv"):
     """
     Explore the data to understand its structure.
     """

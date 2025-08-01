@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-PlumeTrackAI - Wind Prediction
-Main script to make wind predictions using the trained LSTM model.
+PlumeTrackAI - Wind Prediction Script
+Makes wind predictions using the trained LSTM model.
 """
 
 import sys
 import os
 
-# Add src directory to path
-sys.path.append('src')
+# Add current directory to path
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from src.predict_wind import main as predict_main
+from prediction.wind_predictor import main as predict_main
 
 if __name__ == "__main__":
     print("=== PlumeTrackAI Wind Prediction ===")
-    print("Starting prediction from wind_model directory...")
+    print("Starting wind prediction...")
     
     try:
         predict_main()
