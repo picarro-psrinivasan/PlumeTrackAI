@@ -153,7 +153,7 @@ async def predict_wind_forecast_weighted(request: PredictionRequest):
         
         # Set default model path for API usage
         if request.model_path is None:
-            request.model_path = '../models/wind_lstm_model.pth'
+            request.model_path = 'trained_models/wind_lstm_model.pth'
         
         # Create a custom forecast-weighted prediction function that works from API directory
         def custom_forecast_weighted_prediction(**kwargs):
