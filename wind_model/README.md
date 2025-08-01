@@ -10,12 +10,14 @@ wind_model/
 ├── README.md                   # This file
 ├── train_model.py              # Main training script
 ├── predict.py                  # Main prediction script
+├── calculate_plume_travel.py   # Gas plume travel time calculator
 ├── ops_wind_data_api.py        # Wind data API operations
 ├── src/                        # Core model implementation
 │   ├── __init__.py
 │   ├── lstm_model.py          # LSTM model implementation
 │   ├── predict_wind.py        # Wind prediction functionality
-│   └── load_data.py           # Data loading utilities
+│   ├── load_data.py           # Data loading utilities
+│   └── plume_travel.py        # Gas plume travel time calculator
 └── models/                     # Trained model files
     └── wind_lstm_model.pth    # Trained LSTM model
 ```
@@ -34,6 +36,12 @@ cd wind_model
 python predict.py
 ```
 
+### Calculating Gas Plume Travel Time
+```bash
+cd wind_model
+python calculate_plume_travel.py
+```
+
 ### Using the API
 ```python
 from wind_model.src.lstm_model import WindLSTM
@@ -49,6 +57,7 @@ from wind_model.src.load_data import load_and_preprocess_data
 - **src/lstm_model.py**: LSTM neural network implementation for wind prediction
 - **src/predict_wind.py**: Wind prediction functionality and utilities
 - **src/load_data.py**: Data loading, preprocessing, and feature engineering utilities
+- **src/plume_travel.py**: Gas plume travel time calculation using time-stepped algorithm
 - **models/wind_lstm_model.pth**: Trained LSTM model weights and scaler
 
 ## Dependencies

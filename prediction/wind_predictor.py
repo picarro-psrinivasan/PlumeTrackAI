@@ -5,12 +5,11 @@ from sklearn.preprocessing import MinMaxScaler
 import sys
 import os
 
-# Add the src directory to the path so we can import load_data
+# Add the current directory to the path so we can import modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from load_data import load_and_preprocess_data
-from lstm_model import WindLSTM
+from model_definitions.lstm_model import WindLSTM
 
-def load_trained_model(model_path='models/wind_lstm_model.pth'):
+def load_trained_model(model_path='trained_models/wind_lstm_model.pth'):
     """
     Load the trained LSTM model and scaler.
     
@@ -144,7 +143,7 @@ def predict_wind_6hours_ahead(model, input_sequence, scaler):
         
         return predictions
 
-def get_recent_wind_data(data_file='../data/15_min_avg_1site_1ms.csv', hours_back=6):
+def get_recent_wind_data(data_file='data_files/15_min_avg_1site_1ms.csv', hours_back=6):
     """
     Get recent wind data for prediction.
     
@@ -161,7 +160,10 @@ def get_recent_wind_data(data_file='../data/15_min_avg_1site_1ms.csv', hours_bac
         df = pd.read_csv(data_file)
         
         # Extract wind data from JSON wind_metrics column
-        from load_data import extract_wind_data
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from data_handling.loader import extract_wind_data
         df = extract_wind_data(df)
         
         # Keep only wind speed and direction columns

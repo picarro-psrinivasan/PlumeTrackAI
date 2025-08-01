@@ -9,7 +9,10 @@ import os
 
 # Add the src directory to the path so we can import load_data
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from load_data import load_and_preprocess_data
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from data_handling.loader import load_and_preprocess_data
 
 class WindLSTM(nn.Module):
     """
@@ -353,9 +356,9 @@ def main():
         'model_state_dict': best_model,
         'scaler': scaler,
         'metrics': metrics
-    }, 'models/wind_lstm_model.pth', _use_new_zipfile_serialization=False)
+    }, 'trained_models/wind_lstm_model.pth', _use_new_zipfile_serialization=False)
     
-    print("\nModel saved as 'models/wind_lstm_model.pth'")
+    print("\nModel saved as 'trained_models/wind_lstm_model.pth'")
     print("Training completed successfully!")
 
 if __name__ == "__main__":
