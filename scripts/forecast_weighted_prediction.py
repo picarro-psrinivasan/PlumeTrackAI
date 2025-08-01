@@ -34,9 +34,9 @@ def forecast_weighted_prediction(
     # Set default model path based on how script is run
     if model_path is None:
         if os.path.exists('models/wind_lstm_model.pth'):
-            model_path = 'models/wind_lstm_model.pth'
+            model_path = 'trained_models/wind_lstm_model.pth'
         else:
-            model_path = '../models/wind_lstm_model.pth'
+            model_path = 'trained_models/wind_lstm_model.pth'
     """
     Make forecast-weighted prediction by combining LSTM output with forecast data.
     
@@ -74,12 +74,19 @@ def forecast_weighted_prediction(
         print("❌ Could not prepare input sequence")
         return None
     
-    base_prediction = predict_wind_6hours_ahead(model, input_sequence, scaler)
-    if base_prediction is None:
+    base_predictions = predict_wind_6hours_ahead(model, input_sequence, scaler)
+    if base_predictions is None:
         print("❌ Could not make base prediction")
         return None
     
-    print(f"✅ Base prediction: {base_prediction['wind_speed_mph']:.2f} mph, {base_prediction['wind_direction_degrees']:.1f}°")
+    # Get the prediction for the specific hour we want
+    if hours_ahead <= len(base_predictions):
+        base_prediction = base_predictions[hours_ahead - 1]  # 0-indexed, so hours_ahead-1
+    else:
+        # If hours_ahead is greater than available predictions, use the last one
+        base_prediction = base_predictions[-1]
+    
+    print(f"✅ Base prediction for hour {hours_ahead}: {base_prediction['wind_speed_mph']:.2f} mph, {base_prediction['wind_direction_degrees']:.1f}°")
     
     # Get forecast data
     print("2️⃣ Retrieving forecast data...")
@@ -88,9 +95,15 @@ def forecast_weighted_prediction(
     if forecast_data is None:
         print("⚠️ Could not retrieve forecast data, using base prediction only")
         return {
-            'prediction': base_prediction,
+            'base_prediction': base_prediction,
+            'weighted_prediction': base_prediction,  # Same as base when no forecast
             'method': 'base_only',
-            'forecast_available': False
+            'forecast_available': False,
+            'forecast_confidence': 0.0,
+            'forecast_weight_used': 0.0,
+            'validation': None,
+            'base_validation': None,
+            'improvement': None
         }
     
     print("✅ Forecast data retrieved")
