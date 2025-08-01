@@ -33,7 +33,7 @@ def forecast_weighted_prediction(
 ):
     # Set default model path based on how script is run
     if model_path is None:
-        if os.path.exists('models/wind_lstm_model.pth'):
+        if os.path.exists('trained_models/wind_lstm_model.pth'):
             model_path = 'trained_models/wind_lstm_model.pth'
         else:
             model_path = 'trained_models/wind_lstm_model.pth'
