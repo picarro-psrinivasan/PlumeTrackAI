@@ -61,7 +61,7 @@ def extract_wind_data(df):
     
     return wind_df
 
-def load_and_preprocess_data(file_path="../data/15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
+def load_and_preprocess_data(file_path="data/15_min_avg_1site_1ms.csv", sequence_length=24, target_hours=6):
     """
     Load and preprocess wind data for LSTM training.
     
@@ -193,7 +193,7 @@ def create_sequences(data, sequence_length, target_hours):
     
     return np.array(X), np.array(y)
 
-def explore_data(file_path="../data/15_min_avg_1site_1ms.csv"):
+def explore_data(file_path="data/15_min_avg_1site_1ms.csv"):
     """
     Explore the data to understand its structure.
     """

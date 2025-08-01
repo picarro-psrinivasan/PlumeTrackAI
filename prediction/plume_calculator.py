@@ -106,7 +106,7 @@ def predict_plume_travel_time(
     risk_lat: float,
     risk_lon: float,
     model_path: str = 'trained_models/wind_lstm_model.pth',
-    data_file: str = 'data_files/15_min_avg_1site_1ms.csv',
+    data_file: str = 'data/15_min_avg_1site_1ms.csv',
     prediction_hours: int = 6
 ) -> Tuple[Optional[float], List[dict]]:
     """
