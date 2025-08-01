@@ -134,7 +134,7 @@ def predict_wind_6hours_ahead(model, input_sequence, scaler):
             'wind_direction_degrees': round(wind_direction_pred, 1)
         }
 
-def get_recent_wind_data(data_file='../data/15_min_avg_1site_1ms.csv', hours_back=6):
+def get_recent_wind_data(data_file='../../data/15_min_avg_1site_1ms.csv', hours_back=6):
     """
     Get recent wind data for prediction.
     

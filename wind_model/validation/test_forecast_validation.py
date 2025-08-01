@@ -7,11 +7,19 @@ This script demonstrates how to extract wind forecast data and validate predicti
 import sys
 import os
 
-# Add src directory to path
-sys.path.append('src')
+# Add paths
+sys.path.append('../src')
+sys.path.append('../api')
 
-from ops_wind_data_api import extract_forecast_wind_data, validate_prediction_with_forecast
-from src.predict_wind import predict_wind_6hours_ahead, load_trained_model
+# Handle imports based on how the script is run
+try:
+    from api.ops_wind_data_api import extract_forecast_wind_data, validate_prediction_with_forecast
+    from src.predict_wind import predict_wind_6hours_ahead, load_trained_model
+except ImportError:
+    # If running directly, adjust paths
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from api.ops_wind_data_api import extract_forecast_wind_data, validate_prediction_with_forecast
+    from src.predict_wind import predict_wind_6hours_ahead, load_trained_model
 
 def test_forecast_extraction():
     """

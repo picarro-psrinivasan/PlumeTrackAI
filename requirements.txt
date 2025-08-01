@@ -21,4 +21,22 @@ ipykernel>=6.0.0
 
 # Additional utilities
 tqdm>=4.65.0  # Progress bars
-joblib>=1.3.0  # Parallel processing 
+joblib>=1.3.0  # Parallel processing
+
+# API and web framework dependencies
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
+
+# HTTP client and caching
+requests>=2.31.0
+requests-cache>=1.1.0
+retry-requests>=0.0.1
+
+# Weather data API
+openmeteo-requests>=0.1.0
+
+# Testing dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0 
