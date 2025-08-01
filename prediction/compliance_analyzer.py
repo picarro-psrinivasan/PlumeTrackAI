@@ -89,19 +89,27 @@ class ComplianceAnalyzer:
         
         compliance_results = {
             'summary': {},
-            'hourly_analysis': [],
+            'time_step_analysis': [],
             'violations': [],
             'risk_assessment': {},
             'recommendations': []
         }
         
-        # Analyze each hour
-        for hour_pred in predictions:
-            hour = hour_pred['hour']
-            compounds = hour_pred['compounds']
+        # Analyze each time step (15-minute intervals)
+        for step_pred in predictions:
+            step = step_pred['step']
+            time_minutes = step_pred['time_minutes']
+            compounds = step_pred['compounds']
             
-            hour_analysis = {
-                'hour': hour,
+            # Convert minutes to readable time
+            hours = time_minutes // 60
+            mins = time_minutes % 60
+            time_str = f"{hours:02d}:{mins:02d}"
+            
+            step_analysis = {
+                'step': step,
+                'time_minutes': time_minutes,
+                'time_str': time_str,
                 'compounds': {},
                 'violations': [],
                 'risk_score': 0
@@ -130,26 +138,28 @@ class ComplianceAnalyzer:
                     'unit': 'PPB'
                 }
                 
-                hour_analysis['compounds'][compound_name] = compound_analysis
+                step_analysis['compounds'][compound_name] = compound_analysis
                 
                 # Track violations
                 if is_violation:
                     violation_info = {
-                        'hour': hour,
+                        'step': step,
+                        'time_minutes': time_minutes,
+                        'time_str': time_str,
                         'compound': compound_display_name,
                         'concentration': concentration,
                         'threshold': threshold_value,
                         'excess': concentration - threshold_value,
                         'risk_level': risk_level
                     }
-                    hour_analysis['violations'].append(violation_info)
+                    step_analysis['violations'].append(violation_info)
                     compliance_results['violations'].append(violation_info)
                     
                     # Calculate risk score (higher for critical compounds)
                     risk_multiplier = {'low': 1, 'medium': 2, 'high': 3, 'critical': 5}
-                    hour_analysis['risk_score'] += (concentration / threshold_value) * risk_multiplier.get(risk_level, 1)
+                    step_analysis['risk_score'] += (concentration / threshold_value) * risk_multiplier.get(risk_level, 1)
             
-            compliance_results['hourly_analysis'].append(hour_analysis)
+            compliance_results['time_step_analysis'].append(step_analysis)
         
         # Generate summary statistics
         compliance_results['summary'] = self._generate_summary(compliance_results)
@@ -179,7 +189,8 @@ class ComplianceAnalyzer:
             'total_violations': total_violations,
             'compounds_with_violations': len(compounds_with_violations),
             'critical_violations': critical_violations,
-            'prediction_hours': len(results['hourly_analysis']),
+            'prediction_time_steps': len(results['time_step_analysis']),
+            'prediction_hours': len(results['time_step_analysis']) // 4,  # 4 time steps per hour
             'compliance_status': 'NON-COMPLIANT' if total_violations > 0 else 'COMPLIANT'
         }
     
@@ -192,13 +203,14 @@ class ComplianceAnalyzer:
                 'overall_risk': 'LOW',
                 'risk_score': 0,
                 'primary_concerns': [],
+                'critical_compounds': [],
                 'immediate_actions_needed': False
             }
         
         # Calculate risk metrics
         max_violation_excess = max([v['excess'] for v in results['violations']])
         critical_compounds = [v['compound'] for v in results['violations'] if v['risk_level'] == 'critical']
-        avg_risk_score = np.mean([h['risk_score'] for h in results['hourly_analysis'] if h['risk_score'] > 0])
+        avg_risk_score = np.mean([s['risk_score'] for s in results['time_step_analysis'] if s['risk_score'] > 0])
         
         # Determine overall risk level
         if critical_compounds or avg_risk_score > 3:
@@ -225,8 +237,8 @@ class ComplianceAnalyzer:
         recommendations = []
         
         if not results['violations']:
-            recommendations.append("✅ All predicted concentrations are within regulatory limits.")
-            recommendations.append("📊 Continue monitoring to maintain compliance.")
+            recommendations.append("All predicted concentrations are within regulatory limits.")
+            recommendations.append("Continue monitoring to maintain compliance.")
             return recommendations
         
         # Analyze violations and generate specific recommendations
@@ -234,20 +246,20 @@ class ComplianceAnalyzer:
         high_violations = [v for v in results['violations'] if v['risk_level'] == 'high']
         
         if critical_violations:
-            recommendations.append("🚨 CRITICAL: Immediate action required for critical compound violations!")
+            recommendations.append("CRITICAL: Immediate action required for critical compound violations!")
             for violation in critical_violations:
                 recommendations.append(f"   - {violation['compound']}: {violation['concentration']:.3f} PPB (threshold: {violation['threshold']:.3f} PPB)")
         
         if high_violations:
-            recommendations.append("⚠️ HIGH RISK: Address high-risk compound violations promptly.")
+            recommendations.append("HIGH RISK: Address high-risk compound violations promptly.")
             for violation in high_violations:
                 recommendations.append(f"   - {violation['compound']}: {violation['concentration']:.3f} PPB (threshold: {violation['threshold']:.3f} PPB)")
         
         # General recommendations
-        recommendations.append("🔍 Investigate potential sources of elevated concentrations.")
-        recommendations.append("📈 Review emission control systems and maintenance schedules.")
-        recommendations.append("👥 Notify relevant personnel and stakeholders.")
-        recommendations.append("📋 Document all violations and mitigation actions taken.")
+        recommendations.append("Investigate potential sources of elevated concentrations.")
+        recommendations.append("Review emission control systems and maintenance schedules.")
+        recommendations.append("Notify relevant personnel and stakeholders.")
+        recommendations.append("Document all violations and mitigation actions taken.")
         
         return recommendations
     
@@ -261,7 +273,7 @@ class ComplianceAnalyzer:
         
         # Summary
         summary = results['summary']
-        print(f"\n📊 SUMMARY:")
+        print(f"\nSUMMARY:")
         print(f"   Compliance Status: {summary['compliance_status']}")
         print(f"   Total Violations: {summary['total_violations']}")
         print(f"   Compounds with Violations: {summary['compounds_with_violations']}")
@@ -269,27 +281,27 @@ class ComplianceAnalyzer:
         
         # Risk Assessment
         risk = results['risk_assessment']
-        print(f"\n⚠️  RISK ASSESSMENT:")
+        print(f"\nRISK ASSESSMENT:")
         print(f"   Overall Risk: {risk['overall_risk']}")
         print(f"   Risk Score: {risk['risk_score']:.2f}")
         if risk['critical_compounds']:
             print(f"   Critical Compounds: {', '.join(risk['critical_compounds'])}")
         
-        # Hourly Analysis
-        print(f"\n🕐 HOURLY COMPLIANCE ANALYSIS:")
-        for hour_analysis in results['hourly_analysis']:
-            hour = hour_analysis['hour']
-            violations = hour_analysis['violations']
+        # Time Step Analysis
+        print(f"\n15-MINUTE INTERVAL COMPLIANCE ANALYSIS:")
+        for step_analysis in results['time_step_analysis']:
+            time_str = step_analysis['time_str']
+            violations = step_analysis['violations']
             
             if violations:
-                print(f"\n   Hour {hour}:")
+                print(f"\n   Time {time_str} (Step {step_analysis['step']}):")
                 for violation in violations:
-                    print(f"     ❌ {violation['compound']}: {violation['concentration']:.3f} PPB (threshold: {violation['threshold']:.3f} PPB)")
+                    print(f"   {violation['compound']}: {violation['concentration']:.3f} PPB (threshold: {violation['threshold']:.3f} PPB)")
             else:
-                print(f"   Hour {hour}: ✅ All compounds within limits")
+                print(f"   Time {time_str} (Step {step_analysis['step']}): All compounds within limits")
         
         # Recommendations
-        print(f"\n💡 RECOMMENDATIONS:")
+        print(f"\n RECOMMENDATIONS:")
         for rec in results['recommendations']:
             print(f"   {rec}")
         
@@ -301,35 +313,17 @@ def main():
     """
     print("=== PlumeTrackAI Compliance Impact Analyzer ===")
     
-    # Load the trained concentration model
-    print("\nLoading trained concentration model...")
-    model, scaler, metrics, input_size = load_trained_concentration_model()
+    # Get concentration predictions using the new function
+    print("\nGetting concentration predictions...")
+    from prediction.concentration_predictor import get_concentration_predictions
     
-    if model is None:
-        print("Error: Could not load concentration model.")
+    prediction_results = get_concentration_predictions()
+    
+    if prediction_results is None:
+        print("Error: Could not get concentration predictions.")
         return
     
-    # Get recent concentration data
-    print("\nLoading recent concentration data...")
-    recent_data = get_recent_concentration_data()
-    
-    if recent_data is None:
-        print("Error: Could not load recent concentration data.")
-        return
-    
-    # Prepare input sequence and make predictions
-    print("\nMaking concentration predictions...")
-    input_sequence = prepare_concentration_input_sequence(recent_data, scaler, sequence_length=24)
-    
-    if input_sequence is None:
-        print("Error: Could not prepare input sequence.")
-        return
-    
-    predictions = predict_concentration_6hours_ahead(model, input_sequence, scaler)
-    
-    if predictions is None:
-        print("Error: Could not make predictions.")
-        return
+    predictions = prediction_results['predictions']
     
     # Analyze compliance impact
     print("\nAnalyzing compliance impact...")
