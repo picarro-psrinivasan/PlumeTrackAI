@@ -493,6 +493,30 @@ def calculate_plume_forecast_weighted(
         'improvement': wind_results.get('improvement', 0.0)
     }
     
+    # Add GeoJSON visualization
+    try:
+        # Try different import paths
+        try:
+            from utils.geo_utils import create_comparison_geojson
+        except ImportError:
+            try:
+                import sys
+                sys.path.append('..')
+                from utils.geo_utils import create_comparison_geojson
+            except ImportError:
+                sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                from utils.geo_utils import create_comparison_geojson
+        
+        geojson_data = create_comparison_geojson(
+            source_lat=source_lat,
+            source_lon=source_lon,
+            travel_log=combined_travel_log
+        )
+        results['geojson'] = geojson_data
+    except Exception as e:
+        print(f"Warning: Could not create GeoJSON: {e}")
+        results['geojson'] = None
+    
     # Add distance and bearing information
     total_distance = calculate_distance(source_lat, source_lon, risk_lat, risk_lon)
     bearing = calculate_bearing(source_lat, source_lon, risk_lat, risk_lon)

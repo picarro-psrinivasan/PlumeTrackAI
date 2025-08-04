@@ -94,6 +94,9 @@ class PlumePredictionResponse(BaseModel):
     # Plume travel results
     plume_travel: Dict[str, Any]
     
+    # GeoJSON visualization
+    geojson: Optional[Dict[str, Any]] = None
+    
     # Forecast information
     forecast_weight_used: Optional[float]
     forecast_confidence: Optional[float]
@@ -169,6 +172,7 @@ async def predict_plume_forecast_weighted(request: PlumePredictionRequest):
         # Convert numpy types to Python native types for Pydantic serialization
         wind_predictions_converted = convert_numpy_types(results.get('wind_predictions', {}))
         plume_travel_converted = convert_numpy_types(results.get('plume_travel', {}))
+        geojson_converted = convert_numpy_types(results.get('geojson'))
         
         # Build response
         response = PlumePredictionResponse(
@@ -178,6 +182,7 @@ async def predict_plume_forecast_weighted(request: PlumePredictionRequest):
             risk_location=results.get('risk_location', {}),
             wind_predictions=wind_predictions_converted,
             plume_travel=plume_travel_converted,
+            geojson=geojson_converted,
             forecast_weight_used=convert_numpy_types(results.get('forecast_weight_used')),
             forecast_confidence=convert_numpy_types(results.get('forecast_confidence')),
             improvement=convert_numpy_types(results.get('improvement'))
@@ -231,32 +236,41 @@ async def simple_plume_prediction(
             )
         
         # Convert numpy types to Python native types
-        plume_travel = convert_numpy_types(results.get('plume_travel', {}))
-        wind_predictions = convert_numpy_types(results.get('wind_predictions', {}))
-        
-        return {
-            "success": True,
-            "timestamp": datetime.now().isoformat(),
-            "source_location": results.get('source_location', {}),
-            "risk_location": results.get('risk_location', {}),
-            "plume_travel": {
-                "arrival_time_hours": plume_travel.get('arrival_time_hours'),
-                "will_reach_destination": plume_travel.get('will_reach_destination'),
-                "travel_log": plume_travel.get('travel_log', []),
-                "base_arrival_time_hours": plume_travel.get('base_arrival_time_hours'),
-                "weighted_arrival_time_hours": plume_travel.get('weighted_arrival_time_hours'),
-                "base_will_reach_destination": plume_travel.get('base_will_reach_destination'),
-                "weighted_will_reach_destination": plume_travel.get('weighted_will_reach_destination'),
-                "total_distance_km": plume_travel.get('total_distance_km'),
-                "bearing_degrees": plume_travel.get('bearing_degrees')
-            },
-            "wind_prediction": {
-                "wind_speed_mph": wind_predictions.get('weighted_prediction', {}).get('wind_speed_mph'),
-                "wind_direction_degrees": wind_predictions.get('weighted_prediction', {}).get('wind_direction_degrees')
-            },
-            "forecast_confidence": convert_numpy_types(results.get('forecast_confidence')),
-            "improvement": convert_numpy_types(results.get('improvement'))
-        }
+        try:
+            plume_travel = convert_numpy_types(results.get('plume_travel', {}))
+            wind_predictions = convert_numpy_types(results.get('wind_predictions', {}))
+            geojson_data = convert_numpy_types(results.get('geojson'))
+            
+            return {
+                "success": True,
+                "timestamp": datetime.now().isoformat(),
+                "source_location": results.get('source_location', {}),
+                "risk_location": results.get('risk_location', {}),
+                "plume_travel": {
+                    "arrival_time_hours": plume_travel.get('arrival_time_hours'),
+                    "will_reach_destination": plume_travel.get('will_reach_destination'),
+                    "travel_log": plume_travel.get('travel_log', []),
+                    "base_arrival_time_hours": plume_travel.get('base_arrival_time_hours'),
+                    "weighted_arrival_time_hours": plume_travel.get('weighted_arrival_time_hours'),
+                    "base_will_reach_destination": plume_travel.get('base_will_reach_destination'),
+                    "weighted_will_reach_destination": plume_travel.get('weighted_will_reach_destination'),
+                    "total_distance_km": plume_travel.get('total_distance_km'),
+                    "bearing_degrees": plume_travel.get('bearing_degrees')
+                },
+                "geojson": geojson_data,
+                "wind_prediction": {
+                    "wind_speed_mph": wind_predictions.get('weighted_prediction', {}).get('wind_speed_mph'),
+                    "wind_direction_degrees": wind_predictions.get('weighted_prediction', {}).get('wind_direction_degrees')
+                },
+                "forecast_confidence": convert_numpy_types(results.get('forecast_confidence')),
+                "improvement": convert_numpy_types(results.get('improvement'))
+            }
+        except Exception as e:
+            print(f"Error in simple endpoint: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error processing response: {str(e)}"
+            )
         
     except Exception as e:
         raise HTTPException(
