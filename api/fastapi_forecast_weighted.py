@@ -5,6 +5,7 @@ Provides REST API access to forecast-weighted wind predictions.
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 import sys
@@ -66,6 +67,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly allow all methods
+    allow_headers=["*"],  # Allows all headers
+    expose_headers=["*"],  # Expose all headers
+)
+
 class PredictionRequest(BaseModel):
     """Request model for wind prediction."""
     latitude: float = Field(30.452, ge=-90, le=90, description="Latitude coordinate")
@@ -121,6 +132,50 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "service": "forecast-weighted-prediction"
     }
+
+from fastapi.responses import Response
+
+@app.options("/predict")
+async def predict_options():
+    """Handle OPTIONS requests for CORS preflight."""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
+@app.options("/predict/simple")
+async def simple_prediction_options():
+    """Handle OPTIONS requests for simple prediction endpoint."""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
+@app.options("/{path:path}")
+async def catch_all_options(path: str):
+    """Catch-all OPTIONS handler for any path."""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict_wind_forecast_weighted(request: PredictionRequest):

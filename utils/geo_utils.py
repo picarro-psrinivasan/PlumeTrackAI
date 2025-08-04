@@ -221,40 +221,27 @@ def create_plume_geojson_from_travel_log(
     
     return geojson
 
-def create_comparison_geojson(
+def create_weighted_prediction_geojson(
     source_lat: float,
     source_lon: float,
     travel_log: List[Dict[str, Any]]
 ) -> Dict[str, Any]:
     """
-    Create a GeoJSON FeatureCollection comparing base and weighted predictions.
+    Create a GeoJSON LineString for weighted prediction only.
     
     Args:
         source_lat, source_lon: Source coordinates
-        travel_log: Travel log with both base and weighted predictions
+        travel_log: Travel log with weighted predictions
         
     Returns:
-        GeoJSON FeatureCollection with both paths
+        GeoJSON LineString showing the weighted prediction path
     """
     
-    # Create base prediction path
-    base_geojson = create_plume_geojson_from_travel_log(
-        source_lat, source_lon, travel_log, "base_prediction"
-    )
-    base_geojson["properties"]["name"] = "Base Prediction"
-    base_geojson["properties"]["color"] = "#ff0000"  # Red
-    
-    # Create weighted prediction path
+    # Create weighted prediction path only
     weighted_geojson = create_plume_geojson_from_travel_log(
         source_lat, source_lon, travel_log, "weighted_prediction"
     )
     weighted_geojson["properties"]["name"] = "Weighted Prediction"
     weighted_geojson["properties"]["color"] = "#0000ff"  # Blue
     
-    # Create FeatureCollection
-    feature_collection = {
-        "type": "FeatureCollection",
-        "features": [base_geojson, weighted_geojson]
-    }
-    
-    return feature_collection 
+    return weighted_geojson 

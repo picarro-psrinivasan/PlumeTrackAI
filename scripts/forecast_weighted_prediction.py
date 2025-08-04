@@ -497,17 +497,17 @@ def calculate_plume_forecast_weighted(
     try:
         # Try different import paths
         try:
-            from utils.geo_utils import create_comparison_geojson
+            from utils.geo_utils import create_weighted_prediction_geojson
         except ImportError:
             try:
                 import sys
                 sys.path.append('..')
-                from utils.geo_utils import create_comparison_geojson
+                from utils.geo_utils import create_weighted_prediction_geojson
             except ImportError:
                 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                from utils.geo_utils import create_comparison_geojson
+                from utils.geo_utils import create_weighted_prediction_geojson
         
-        geojson_data = create_comparison_geojson(
+        geojson_data = create_weighted_prediction_geojson(
             source_lat=source_lat,
             source_lon=source_lon,
             travel_log=combined_travel_log
