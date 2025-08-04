@@ -67,6 +67,16 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicitly allow all methods
+    allow_headers=["*"],  # Allows all headers
+    expose_headers=["*"],  # Expose all headers
+)
+
 class PlumePredictionRequest(BaseModel):
     """Request model for plume prediction."""
     source_latitude: float = Field(30.452, ge=-90, le=90, description="Source latitude coordinate")
@@ -118,6 +128,8 @@ async def root():
         }
     }
 
+from fastapi.responses import Response
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -126,6 +138,48 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "service": "forecast-weighted-plume-prediction"
     }
+
+@app.options("/predict")
+async def predict_options():
+    """Handle OPTIONS requests for CORS preflight."""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
+@app.options("/predict/simple")
+async def simple_prediction_options():
+    """Handle OPTIONS requests for simple prediction endpoint."""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
+
+@app.options("/{path:path}")
+async def catch_all_options(path: str):
+    """Catch-all OPTIONS handler for any path."""
+    return Response(
+        content="",
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
 
 @app.post("/predict", response_model=PlumePredictionResponse)
 async def predict_plume_forecast_weighted(request: PlumePredictionRequest):
