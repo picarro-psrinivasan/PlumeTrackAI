@@ -5,6 +5,7 @@ Provides REST API access to forecast-weighted plume travel predictions.
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, Any, Optional
 import sys
