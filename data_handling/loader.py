@@ -116,12 +116,12 @@ def load_and_preprocess_data(file_path="data/15_min_avg_1site_1ms.csv", sequence
     df['wind_dir_sin'] = np.sin(np.deg2rad(df['wind_direction_deg']))
     df['wind_dir_cos'] = np.cos(np.deg2rad(df['wind_direction_deg']))
     
-    # Scale wind speed
+    # Scale ALL features together for balanced training
     scaler = MinMaxScaler()
-    df['wind_speed_scaled'] = scaler.fit_transform(df[['wind_speed']])
+    features_scaled = scaler.fit_transform(df[['wind_speed', 'wind_dir_sin', 'wind_dir_cos']])
     
-    # Final features: wind_speed_scaled, wind_dir_sin, wind_dir_cos
-    features = df[['wind_speed_scaled', 'wind_dir_sin', 'wind_dir_cos']].values
+    # Final features: all scaled together
+    features = features_scaled
     
     # Create sequences for LSTM
     X, y = create_sequences(features, sequence_length, target_hours)

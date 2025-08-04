@@ -103,7 +103,7 @@ def train_model(model, train_loader, val_loader, num_epochs=50, learning_rate=0.
     # Move model to device
     model = model.to(device)
     
-    # Loss function and optimizer
+    # Simple MSE loss
     criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
@@ -228,35 +228,83 @@ def evaluate_model(model, test_loader, scaler, device='cpu'):
     all_predictions_flat = all_predictions.reshape(-1, 3)
     all_targets_flat = all_targets.reshape(-1, 3)
     
-    # Inverse transform to get original scale (for wind speed only)
-    # Note: We only inverse transform the wind speed (first column)
-    wind_speed_pred = scaler.inverse_transform(all_predictions_flat[:, 0:1]).flatten()
-    wind_speed_true = scaler.inverse_transform(all_targets_flat[:, 0:1]).flatten()
+    # Inverse transform ALL features to get original scale
+    predictions_original = scaler.inverse_transform(all_predictions_flat)
+    targets_original = scaler.inverse_transform(all_targets_flat)
     
-    # Calculate metrics
-    mse = mean_squared_error(wind_speed_true, wind_speed_pred)
-    mae = mean_absolute_error(wind_speed_true, wind_speed_pred)
-    rmse = np.sqrt(mse)
+    # Extract wind speed (first column)
+    wind_speed_pred = predictions_original[:, 0]
+    wind_speed_true = targets_original[:, 0]
     
-    # Calculate R-squared
+    # Extract wind direction components (sin/cos)
+    wind_dir_sin_pred = predictions_original[:, 1]
+    wind_dir_cos_pred = predictions_original[:, 2]
+    wind_dir_sin_true = targets_original[:, 1]
+    wind_dir_cos_true = targets_original[:, 2]
+    
+    # Convert sin/cos back to degrees for direction evaluation
+    wind_dir_pred_deg = np.degrees(np.arctan2(wind_dir_sin_pred, wind_dir_cos_pred))
+    wind_dir_true_deg = np.degrees(np.arctan2(wind_dir_sin_true, wind_dir_cos_true))
+    
+    # Normalize angles to 0-360 degrees
+    wind_dir_pred_deg = (wind_dir_pred_deg + 360) % 360
+    wind_dir_true_deg = (wind_dir_true_deg + 360) % 360
+    
+    # Calculate wind speed metrics
+    wind_speed_mse = mean_squared_error(wind_speed_true, wind_speed_pred)
+    wind_speed_mae = mean_absolute_error(wind_speed_true, wind_speed_pred)
+    wind_speed_rmse = np.sqrt(wind_speed_mse)
+    
+    # Calculate wind direction metrics (handle circular nature)
+    wind_dir_diff = np.abs(wind_dir_pred_deg - wind_dir_true_deg)
+    wind_dir_diff = np.minimum(wind_dir_diff, 360 - wind_dir_diff)  # Handle circular distance
+    wind_dir_mae = np.mean(wind_dir_diff)
+    wind_dir_rmse = np.sqrt(np.mean(wind_dir_diff**2))
+    
+    # Calculate R-squared for wind speed
     ss_res = np.sum((wind_speed_true - wind_speed_pred) ** 2)
     ss_tot = np.sum((wind_speed_true - np.mean(wind_speed_true)) ** 2)
-    r2 = 1 - (ss_res / ss_tot)
+    wind_speed_r2 = 1 - (ss_res / ss_tot)
+    
+    # Calculate overall metrics (average of wind speed and direction)
+    overall_mse = (wind_speed_mse + wind_dir_rmse**2) / 2
+    overall_mae = (wind_speed_mae + wind_dir_mae) / 2
+    overall_rmse = np.sqrt(overall_mse)
     
     metrics = {
-        'MSE': mse,
-        'MAE': mae,
-        'RMSE': rmse,
-        'R2': r2
+        'Wind_Speed_MSE': wind_speed_mse,
+        'Wind_Speed_MAE': wind_speed_mae,
+        'Wind_Speed_RMSE': wind_speed_rmse,
+        'Wind_Speed_R2': wind_speed_r2,
+        'Wind_Direction_MAE': wind_dir_mae,
+        'Wind_Direction_RMSE': wind_dir_rmse,
+        'Overall_MSE': overall_mse,
+        'Overall_MAE': overall_mae,
+        'Overall_RMSE': overall_rmse
     }
     
     print("\n=== Model Evaluation ===")
-    print(f"Mean Squared Error: {mse:.4f}")
-    print(f"Mean Absolute Error: {mae:.4f}")
-    print(f"Root Mean Squared Error: {rmse:.4f}")
-    print(f"R-squared: {r2:.4f}")
+    print("Wind Speed Metrics:")
+    print(f"  MSE: {wind_speed_mse:.4f} mph²")
+    print(f"  MAE: {wind_speed_mae:.4f} mph")
+    print(f"  RMSE: {wind_speed_rmse:.4f} mph")
+    print(f"  R-squared: {wind_speed_r2:.4f}")
+    print("\nWind Direction Metrics:")
+    print(f"  MAE: {wind_dir_mae:.2f} degrees")
+    print(f"  RMSE: {wind_dir_rmse:.2f} degrees")
+    print("\nOverall Model Metrics:")
+    print(f"  Overall MSE: {overall_mse:.4f}")
+    print(f"  Overall MAE: {overall_mae:.4f}")
+    print(f"  Overall RMSE: {overall_rmse:.4f}")
     
-    return metrics, wind_speed_pred, wind_speed_true
+    # Print sample predictions
+    print(f"\nSample Predictions (first 5):")
+    print("Time | Pred Speed | True Speed | Pred Dir | True Dir")
+    print("-" * 50)
+    for i in range(min(5, len(wind_speed_pred))):
+        print(f"{i+1:4d} | {wind_speed_pred[i]:10.2f} | {wind_speed_true[i]:10.2f} | {wind_dir_pred_deg[i]:8.1f}° | {wind_dir_true_deg[i]:8.1f}°")
+    
+    return metrics, predictions_original, targets_original
 
 # def plot_training_history(train_losses, val_losses):
 #     """
@@ -315,10 +363,10 @@ def main():
     print("\nCreating LSTM model...")
     model = WindLSTM(
         input_size=3,      # wind_speed_scaled, wind_dir_sin, wind_dir_cos
-        hidden_size=64,    # Number of LSTM hidden units
-        num_layers=2,      # Number of LSTM layers
+        hidden_size=64,    # Back to 64 - simpler is better
+        num_layers=2,      # Back to 2 layers - avoid overfitting
         output_steps=6,    # Predict 6 hours ahead (one prediction per hour)
-        dropout=0.2        # Dropout for regularization
+        dropout=0.2        # Back to 0.2 - balanced regularization
     )
     
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
@@ -329,8 +377,8 @@ def main():
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
-        num_epochs=10,
-        learning_rate=0.001,
+        num_epochs=200,  # More epochs with simpler model
+        learning_rate=0.001,  # Back to standard learning rate
         device=device
     )
     
