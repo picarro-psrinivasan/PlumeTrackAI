@@ -69,11 +69,15 @@ def prepare_input_sequence(recent_data, scaler, sequence_length=24):
     
     # Ensure we have enough data
     if len(recent_data) < sequence_length:
-        print(f"Error: Need at least {sequence_length} time steps, but only have {len(recent_data)}")
-        return None
-    
-    # Take the most recent sequence_length time steps
-    recent_data = recent_data.tail(sequence_length).copy()
+        print(f"Warning: Need at least {sequence_length} time steps, but only have {len(recent_data)}")
+        print(f"Using all available data ({len(recent_data)} time steps)")
+        # Use all available data if we don't have enough
+        actual_sequence_length = len(recent_data)
+        recent_data = recent_data.copy()
+    else:
+        # Take the most recent sequence_length time steps
+        recent_data = recent_data.tail(sequence_length).copy()
+        actual_sequence_length = sequence_length
     
     # Convert wind direction to sin/cos
     recent_data['wind_dir_sin'] = np.sin(np.deg2rad(recent_data['wind_direction_deg']))
@@ -90,8 +94,9 @@ def prepare_input_sequence(recent_data, scaler, sequence_length=24):
     ])
     
     # Convert to tensor and add batch dimension
-    input_tensor = torch.FloatTensor(features).unsqueeze(0)  # Shape: (1, sequence_length, 3)
+    input_tensor = torch.FloatTensor(features).unsqueeze(0)  # Shape: (1, actual_sequence_length, 3)
     
+    print(f"Input tensor shape: {input_tensor.shape}")
     return input_tensor
 
 def predict_wind_6hours_ahead(model, input_sequence, scaler):
@@ -143,48 +148,99 @@ def predict_wind_6hours_ahead(model, input_sequence, scaler):
         
         return predictions
 
-def get_recent_wind_data(data_file='data/15_min_avg_1site_1ms.csv', hours_back=6):
+def get_recent_wind_data(
+    data_source='druid',
+    druid_url='http://sc-fenceline-int-dev5.corp.picarro.com:8888',
+    datasource='15_minutes_avg_data',
+    monitoring_system_id='398ae5cb-7971-44b2-b153-c2898ab6fde8',
+    data_file='data/15_min_avg_1site_1ms.csv',
+    hours_back=6
+):
     """
-    Get recent wind data for prediction.
+    Get recent wind data for prediction from Druid database or CSV file.
     
     Args:
-        data_file (str): Path to the CSV file
+        data_source (str): 'druid' or 'csv'
+        druid_url (str): Druid broker URL
+        datasource (str): Druid datasource name (default: 15_minutes_avg_data)
+        monitoring_system_id (str): Monitoring system ID for Druid query
+        data_file (str): Path to the CSV file (fallback)
         hours_back (int): How many hours of data to get
         
     Returns:
         pd.DataFrame: Recent wind data
     """
     
-    try:
-        # Load the data
-        df = pd.read_csv(data_file)
-        
-        # Extract wind data from JSON wind_metrics column
-        import sys
-        import os
-        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-        from data_handling.loader import extract_wind_data
-        df = extract_wind_data(df)
-        
-        # Keep only wind speed and direction columns
-        if 'wind_speed' in df.columns and 'wind_direction_deg' in df.columns:
-            df = df[['wind_speed', 'wind_direction_deg']].dropna()
-        else:
-            print("Error: Required columns not found in data file")
+    if data_source.lower() == 'druid':
+        try:
+            print(f"🔍 Fetching wind data from Druid database...")
+            print(f"Druid URL: {druid_url}")
+            print(f"Datasource: {datasource}")
+            print(f"Monitoring System ID: {monitoring_system_id}")
+            
+            # Import Druid connector
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from data_handling.druid_connector import get_recent_wind_data_from_druid
+            
+            # Fetch data from Druid
+            recent_data = get_recent_wind_data_from_druid(
+                druid_url=druid_url,
+                datasource=datasource,
+                monitoring_system_id=monitoring_system_id,
+                hours_back=hours_back
+            )
+            
+            if recent_data is not None:
+                print(f"✅ Successfully loaded {len(recent_data)} time steps from Druid")
+                print(f"Data range: {recent_data.index[0]} to {recent_data.index[-1]}")
+                return recent_data
+            else:
+                print("⚠️ Failed to fetch data from Druid, falling back to CSV")
+                data_source = 'csv'
+                
+        except Exception as e:
+            print(f"❌ Error connecting to Druid: {e}")
+            print("⚠️ Falling back to CSV file")
+            data_source = 'csv'
+    
+    # Fallback to CSV file
+    if data_source.lower() == 'csv':
+        try:
+            print(f"📁 Loading wind data from CSV file: {data_file}")
+            
+            # Load the data
+            df = pd.read_csv(data_file)
+            
+            # Extract wind data from JSON wind_metrics column
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from data_handling.loader import extract_wind_data
+            df = extract_wind_data(df)
+            
+            # Keep only wind speed and direction columns
+            if 'wind_speed' in df.columns and 'wind_direction_deg' in df.columns:
+                df = df[['wind_speed', 'wind_direction_deg']].dropna()
+            else:
+                print("Error: Required columns not found in data file")
+                return None
+            
+            # Get the most recent data (assuming 15-minute intervals)
+            time_steps_needed = hours_back * 4  # 4 time steps per hour
+            recent_data = df.tail(time_steps_needed + 24)  # Extra for sequence length
+            
+            print(f"✅ Loaded {len(recent_data)} time steps from CSV")
+            print(f"Data range: {recent_data.index[0]} to {recent_data.index[-1]}")
+            
+            return recent_data
+            
+        except Exception as e:
+            print(f"❌ Error loading CSV data: {e}")
             return None
-        
-        # Get the most recent data (assuming 15-minute intervals)
-        time_steps_needed = hours_back * 4  # 4 time steps per hour
-        recent_data = df.tail(time_steps_needed + 24)  # Extra for sequence length
-        
-        print(f"Loaded {len(recent_data)} time steps of recent data")
-        print(f"Data range: {recent_data.index[0]} to {recent_data.index[-1]}")
-        
-        return recent_data
-        
-    except Exception as e:
-        print(f"Error loading recent data: {e}")
-        return None
+    
+    return None
 
 def main():
     """

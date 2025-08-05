@@ -419,9 +419,13 @@ def calculate_plume_forecast_weighted(
     if hours_ahead > 1:
         # For now, we'll use the same prediction for all hours
         # In a full implementation, you'd get predictions for each hour
-        for hour in range(1, hours_ahead):
-            base_wind_predictions.append(base_wind_predictions[0])
-            weighted_wind_predictions.append(weighted_wind_predictions[0])
+        if len(base_wind_predictions) > 0 and len(weighted_wind_predictions) > 0:
+            for hour in range(1, hours_ahead):
+                base_wind_predictions.append(base_wind_predictions[0])
+                weighted_wind_predictions.append(weighted_wind_predictions[0])
+        else:
+            print("❌ No valid wind predictions available for multiple hours")
+            return None
     
     print(f"Base wind predictions for plume calculation:")
     for hour, (speed, direction) in enumerate(base_wind_predictions):
@@ -442,31 +446,43 @@ def calculate_plume_forecast_weighted(
     
     # Combine base and weighted predictions into a single travel log
     combined_travel_log = []
-    for hour in range(len(base_travel_log)):
-        base_step = base_travel_log[hour]
-        weighted_step = weighted_travel_log[hour]
-        
-        combined_step = {
-            'hour': hour + 1,
-            'time': base_step['time'],
-            'base_prediction': {
-                'wind_speed': base_step['wind_speed'],
-                'wind_direction': base_step['wind_direction'],
-                'effective_speed': base_step['effective_speed'],
-                'distance_moved': base_step['distance_moved'],
-                'remaining_distance': base_step['remaining_distance'],
-                'movement_status': base_step['movement_status']
-            },
-            'weighted_prediction': {
-                'wind_speed': weighted_step['wind_speed'],
-                'wind_direction': weighted_step['wind_direction'],
-                'effective_speed': weighted_step['effective_speed'],
-                'distance_moved': weighted_step['distance_moved'],
-                'remaining_distance': weighted_step['remaining_distance'],
-                'movement_status': weighted_step['movement_status']
+    
+    # Use the shorter travel log length to avoid index errors
+    max_hours = min(len(base_travel_log), len(weighted_travel_log))
+    
+    if max_hours == 0:
+        print("❌ No travel log data available")
+        return None
+    
+    for hour in range(max_hours):
+        try:
+            base_step = base_travel_log[hour]
+            weighted_step = weighted_travel_log[hour]
+            
+            combined_step = {
+                'hour': hour + 1,
+                'time': base_step.get('time', hour),
+                'base_prediction': {
+                    'wind_speed': base_step.get('wind_speed', 0),
+                    'wind_direction': base_step.get('wind_direction', 0),
+                    'effective_speed': base_step.get('effective_speed', 0),
+                    'distance_moved': base_step.get('distance_moved', 0),
+                    'remaining_distance': base_step.get('remaining_distance', 0),
+                    'movement_status': base_step.get('movement_status', 'unknown')
+                },
+                'weighted_prediction': {
+                    'wind_speed': weighted_step.get('wind_speed', 0),
+                    'wind_direction': weighted_step.get('wind_direction', 0),
+                    'effective_speed': weighted_step.get('effective_speed', 0),
+                    'distance_moved': weighted_step.get('distance_moved', 0),
+                    'remaining_distance': weighted_step.get('remaining_distance', 0),
+                    'movement_status': weighted_step.get('movement_status', 'unknown')
+                }
             }
-        }
-        combined_travel_log.append(combined_step)
+            combined_travel_log.append(combined_step)
+        except (IndexError, KeyError) as e:
+            print(f"Warning: Error processing travel log hour {hour}: {e}")
+            continue
     
     # Build comprehensive results
     results = {

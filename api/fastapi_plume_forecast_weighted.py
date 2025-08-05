@@ -47,9 +47,23 @@ try:
     import pandas as pd
     from prediction.wind_predictor import get_recent_wind_data as original_get_recent_wind_data
     
-    def get_recent_wind_data_fixed(data_file='../../data/15_min_avg_1site_1ms.csv', hours_back=6):
+    def get_recent_wind_data_fixed(
+        data_source='druid',
+        druid_url='http://sc-fenceline-int-dev5.corp.picarro.com:8888',
+        datasource='15_minutes_avg_data',
+        monitoring_system_id='398ae5cb-7971-44b2-b153-c2898ab6fde8',
+        data_file='../../data/15_min_avg_1site_1ms.csv',
+        hours_back=6
+    ):
         """Fixed version of get_recent_wind_data that works from API directory."""
-        return original_get_recent_wind_data(data_file, hours_back)
+        return original_get_recent_wind_data(
+            data_source=data_source,
+            druid_url=druid_url,
+            datasource=datasource,
+            monitoring_system_id=monitoring_system_id,
+            data_file=data_file,
+            hours_back=hours_back
+        )
     
     # Replace the function in the module
     import prediction.wind_predictor
