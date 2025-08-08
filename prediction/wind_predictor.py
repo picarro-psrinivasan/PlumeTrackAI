@@ -79,15 +79,11 @@ def prepare_input_sequence(recent_data, scaler, sequence_length=24):
     recent_data['wind_dir_sin'] = np.sin(np.deg2rad(recent_data['wind_direction_deg']))
     recent_data['wind_dir_cos'] = np.cos(np.deg2rad(recent_data['wind_direction_deg']))
     
-    # Scale wind speed
-    wind_speed_scaled = scaler.transform(recent_data[['wind_speed']])
+    # Scale ALL features together (same as during training)
+    features_scaled = scaler.transform(recent_data[['wind_speed', 'wind_dir_sin', 'wind_dir_cos']])
     
     # Create feature array
-    features = np.column_stack([
-        wind_speed_scaled.flatten(),
-        recent_data['wind_dir_sin'].values,
-        recent_data['wind_dir_cos'].values
-    ])
+    features = features_scaled
     
     # Convert to tensor and add batch dimension
     input_tensor = torch.FloatTensor(features).unsqueeze(0)  # Shape: (1, sequence_length, 3)
@@ -123,12 +119,16 @@ def predict_wind_6hours_ahead(model, input_sequence, scaler):
             # Get prediction for this hour
             hour_pred = prediction_np[0, hour, :]  # Shape: (3,)
             
-            # Inverse transform wind speed to original scale
-            wind_speed_pred = scaler.inverse_transform(hour_pred[0:1].reshape(1, -1))[0, 0]
+            # Inverse transform ALL features to original scale
+            hour_pred_reshaped = hour_pred.reshape(1, -1)  # Shape: (1, 3)
+            hour_pred_original = scaler.inverse_transform(hour_pred_reshaped)[0]  # Shape: (3,)
             
-            # Get wind direction from sin/cos
-            wind_dir_sin = hour_pred[1]
-            wind_dir_cos = hour_pred[2]
+            # Extract wind speed (first feature)
+            wind_speed_pred = hour_pred_original[0]
+            
+            # Get wind direction from sin/cos (second and third features)
+            wind_dir_sin = hour_pred_original[1]
+            wind_dir_cos = hour_pred_original[2]
             wind_direction_pred = np.degrees(np.arctan2(wind_dir_sin, wind_dir_cos))
             
             # Ensure direction is between 0 and 360 degrees

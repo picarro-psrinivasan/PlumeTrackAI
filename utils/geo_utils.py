@@ -201,9 +201,9 @@ def create_plume_geojson_from_travel_log(
     wind_directions = []
     
     for step in travel_log:
-        prediction = step.get(prediction_type, {})
-        wind_speed = prediction.get('wind_speed', 0)
-        wind_direction = prediction.get('wind_direction', 0)
+        # The travel log has direct fields, not nested under prediction_type
+        wind_speed = step.get('wind_speed', 0)
+        wind_direction = step.get('wind_direction', 0)
         
         wind_speeds.append(wind_speed)
         wind_directions.append(wind_direction)

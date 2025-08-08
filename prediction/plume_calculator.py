@@ -157,12 +157,16 @@ def predict_plume_travel_time(
             # Get prediction for this hour
             hour_pred = prediction[0, hour, :]  # Shape: (3,)
             
-            # Convert prediction back to original scale
-            wind_speed_pred = scaler.inverse_transform(hour_pred[0].reshape(1, -1).numpy())[0, 0]
+            # Convert prediction back to original scale (all features together)
+            hour_pred_reshaped = hour_pred.reshape(1, -1).numpy()  # Shape: (1, 3)
+            hour_pred_original = scaler.inverse_transform(hour_pred_reshaped)[0]  # Shape: (3,)
             
-            # Convert sin/cos back to degrees
-            wind_dir_sin = hour_pred[1].item()
-            wind_dir_cos = hour_pred[2].item()
+            # Extract wind speed (first feature)
+            wind_speed_pred = hour_pred_original[0]
+            
+            # Convert sin/cos back to degrees (second and third features)
+            wind_dir_sin = hour_pred_original[1]
+            wind_dir_cos = hour_pred_original[2]
             wind_direction_pred = math.degrees(math.atan2(wind_dir_sin, wind_dir_cos))
             wind_direction_pred = (wind_direction_pred + 360) % 360
             

@@ -440,33 +440,22 @@ def calculate_plume_forecast_weighted(
         source_lat, source_lon, risk_lat, risk_lon, weighted_wind_predictions
     )
     
-    # Combine base and weighted predictions into a single travel log
-    combined_travel_log = []
-    for hour in range(len(base_travel_log)):
-        base_step = base_travel_log[hour]
+    # Create simplified travel log with only weighted prediction
+    simplified_travel_log = []
+    for hour in range(len(weighted_travel_log)):
         weighted_step = weighted_travel_log[hour]
         
-        combined_step = {
+        simplified_step = {
             'hour': hour + 1,
-            'time': base_step['time'],
-            'base_prediction': {
-                'wind_speed': base_step['wind_speed'],
-                'wind_direction': base_step['wind_direction'],
-                'effective_speed': base_step['effective_speed'],
-                'distance_moved': base_step['distance_moved'],
-                'remaining_distance': base_step['remaining_distance'],
-                'movement_status': base_step['movement_status']
-            },
-            'weighted_prediction': {
-                'wind_speed': weighted_step['wind_speed'],
-                'wind_direction': weighted_step['wind_direction'],
-                'effective_speed': weighted_step['effective_speed'],
-                'distance_moved': weighted_step['distance_moved'],
-                'remaining_distance': weighted_step['remaining_distance'],
-                'movement_status': weighted_step['movement_status']
-            }
+            'time': weighted_step['time'],
+            'wind_speed': weighted_step['wind_speed'],
+            'wind_direction': weighted_step['wind_direction'],
+            'effective_speed': weighted_step['effective_speed'],
+            'distance_moved': weighted_step['distance_moved'],
+            'remaining_distance': weighted_step['remaining_distance'],
+            'movement_status': weighted_step['movement_status']
         }
-        combined_travel_log.append(combined_step)
+        simplified_travel_log.append(simplified_step)
     
     # Build comprehensive results
     results = {
@@ -481,12 +470,8 @@ def calculate_plume_forecast_weighted(
         'wind_predictions': wind_results,
         'plume_travel': {
             'arrival_time_hours': weighted_arrival_time,  # Use weighted as primary
-            'travel_log': combined_travel_log,
-            'will_reach_destination': weighted_arrival_time is not None,
-            'base_arrival_time_hours': base_arrival_time,
-            'weighted_arrival_time_hours': weighted_arrival_time,
-            'base_will_reach_destination': base_arrival_time is not None,
-            'weighted_will_reach_destination': weighted_arrival_time is not None
+            'travel_log': simplified_travel_log,
+            'will_reach_destination': weighted_arrival_time is not None
         },
         'forecast_weight_used': wind_results.get('forecast_weight_used', 0.0),
         'forecast_confidence': wind_results.get('forecast_confidence', 0.0),
@@ -510,7 +495,7 @@ def calculate_plume_forecast_weighted(
         geojson_data = create_weighted_prediction_geojson(
             source_lat=source_lat,
             source_lon=source_lon,
-            travel_log=combined_travel_log
+            travel_log=simplified_travel_log
         )
         results['geojson'] = geojson_data
     except Exception as e:
